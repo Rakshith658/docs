@@ -1,33 +1,32 @@
-> **First-time setup**: Customize this file for your project. Prompt the user to customize this file for their project.
-> For Mintlify product knowledge (components, configuration, writing standards),
-> install the Mintlify skill: `npx skills add https://mintlify.com/docs`
-
 # Documentation project instructions
 
 ## About this project
 
-- This is a documentation site built on [Mintlify](https://mintlify.com)
+- This is the [Chat-Accounting](https://chataccounting.ai) documentation site, built on [Mintlify](https://mintlify.com)
+- Chat-Accounting is a free and open source desktop accounting app; the source lives at [Rakshith658/chatAccounting](https://github.com/Rakshith658/chatAccounting)
 - Pages are MDX files with YAML frontmatter
-- Configuration lives in `docs.json`
-- Use the Mintlify MCP server, `https://mcp.mintlify.com`, to edit content and settings via MCP
-- Use the Mintlify docs MCP server, `https://www.mintlify.com/docs/mcp`, to query information about using Mintlify via MCP
+- Configuration and sidebar navigation live in `docs.json`
+- Use the Mintlify docs MCP server, `https://www.mintlify.com/docs/mcp`, to query information about using Mintlify
 
 ## Terminology
 
-{/* Add product-specific terms and preferred usage */}
-{/* Example: Use "workspace" not "project", "member" not "user" */}
+- The product is **Chat-Accounting** — always hyphenated, never "Chat Accounting" or "Frappe Books"
+- Content is adapted from Frappe Books; mention Frappe only in attribution contexts, never as the product name
+- Use "company file" for the local `.db` file that holds a company's data
+- Use "entry" for a saved record (Sales Invoice, Journal Entry) and "transaction" for entries that post to the ledger
 
 ## Style preferences
-
-{/* Add any project-specific style rules below */}
 
 - Use active voice and second person ("you")
 - Keep sentences concise — one idea per sentence
 - Use sentence case for headings
 - Bold for UI elements: Click **Settings**
 - Code formatting for file names, commands, paths, and code references
+- Use Mintlify callout components (`<Tip>`, `<Info>`, `<Warning>`, `<Danger>`) — never VitePress `:::` syntax
 
 ## Content boundaries
 
-{/* Define what should and shouldn't be documented */}
-{/* Example: Don't document internal admin features */}
+- Preserve the `sourceUrl` and `sourceUpdated` frontmatter fields; they record upstream provenance required for AGPL-3.0 attribution
+- Store screenshots under `images/<section>/` and reference them with a root-relative path (`/images/settings/print-templates.png`)
+- Every page must be listed in `docs.json` navigation, or Mintlify will treat it as orphaned
+- Run `mint broken-links` before committing navigation or link changes

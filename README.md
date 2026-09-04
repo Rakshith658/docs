@@ -1,55 +1,33 @@
-# Mintlify Starter Kit
+# Chat-Accounting documentation
 
-Use the starter kit to get your docs deployed and ready to customize.
+The documentation site for [Chat-Accounting](https://chataccounting.ai), built with [Mintlify](https://mintlify.com).
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+Chat-Accounting is free and open source desktop accounting software for small businesses and freelancers. The app lives at [Rakshith658/chatAccounting](https://github.com/Rakshith658/chatAccounting).
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
+## Local development
 
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## AI-assisted writing
-
-Set up your AI coding tool to work with Mintlify:
+Install the Mintlify CLI and run the dev server from this directory:
 
 ```bash
-npx skills add https://mintlify.com/docs
-```
-
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
-
-See the [AI tools guides](/ai-tools) for tool-specific setup.
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
-
-```
 npm i -g mint
-```
-
-Run the following command at the root of your documentation, where your `docs.json` is located:
-
-```
 mint dev
 ```
 
-View your local preview at `http://localhost:3000`.
+The site opens at `http://localhost:3000`.
 
-## Publishing changes
+## Checks
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+```bash
+mint broken-links
+```
 
-## Need help?
+## Structure
 
-### Troubleshooting
+- `docs.json` — site config and sidebar navigation
+- `*.mdx` — one file per documentation page
+- `images/` — page screenshots, referenced as `/images/<section>/<file>`
+- `logo/` — navbar wordmark (`light.svg`, `dark.svg`); `favicon.svg` is the app icon
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+## Attribution
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+This documentation is adapted from the [Frappe Books documentation](https://docs.frappe.io/books) and is distributed under **AGPL-3.0**, matching the application license. Every page keeps a `sourceUrl` field in its frontmatter recording the upstream page it came from — please preserve these when editing.
