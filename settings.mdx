@@ -13,6 +13,7 @@ There are a few tabs under Settings
 2. Defaults: Settings that are used to set defaults.
 3. Print: Settings that are used to customize the Invoice Print View.
 4. System: Settings used to customize System defaults.
+5. AI (MCP): Settings for connecting AI assistants to Chat-Accounting. ([link](/mcp/connect))
 
 <Tip>
 Inventory Settings
@@ -102,3 +103,14 @@ These settings are used to alter how values such as currency and time are displa
 <Info>
 Get Started Get Started is auto hidden on completion.
 </Info>
+
+## AI (MCP) Settings
+
+This tab controls the local MCP server that lets AI assistants such as Claude Desktop, Claude Code and Cursor work with your books. It is not stored in the company file; it applies to the app as a whole.
+
+1. Status and Enable/Disable: shows whether the server is running and on which port. Disabling stops it until you enable it again.
+2. Server URL: the address to paste into your MCP client, normally `http://127.0.0.1:13337/mcp`.
+3. Access Token: the secret your client must send. Use **Show**, **Copy** or **Regenerate Token**.
+4. Client Setup: ready-to-copy snippets for Claude Code and other MCP clients.
+
+See [Connect an assistant](/mcp/connect) for step-by-step client setup and [Security and approvals](/mcp/security) for what an assistant can and cannot do.

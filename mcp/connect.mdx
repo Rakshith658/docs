@@ -1,0 +1,177 @@
+---
+title: "Connect an assistant"
+description: "Find the MCP server URL and access token in Chat-Accounting, then register the server in Claude Code, Claude Desktop, Cursor or VS Code."
+---
+
+Every MCP client needs two things from Chat-Accounting: the **server URL** and the **access token**. Both live in **Settings > AI (MCP)**.
+
+## Find the URL and token
+
+<Steps>
+  <Step title="Open the AI (MCP) settings tab">
+    In the sidebar go to **Setup > Settings**, then click the **AI (MCP)** tab. The status line at the top shows whether the server is running and on which port.
+  </Step>
+  <Step title="Copy the server URL">
+    The default URL is `http://127.0.0.1:13337/mcp`. If port 13337 was busy when the app started, Chat-Accounting picks the next free port up to 13346, so always copy the URL shown here rather than assuming the default.
+  </Step>
+  <Step title="Copy the access token">
+    Click **Show** to reveal the 64-character token, or **Copy** to put it on your clipboard. The token is generated once on first launch and stored in the app's config file. It does not change between restarts unless you click **Regenerate Token**.
+  </Step>
+  <Step title="Copy a ready-made client snippet">
+    Below the token, the tab shows a Claude Code command and a generic HTTP server config block, both already filled in with your URL and token. Use the **Copy** buttons next to them.
+  </Step>
+</Steps>
+
+<Warning>
+Treat the token like a password. Anyone who has it and can reach your machine can read your books and create drafts. If it leaks, click **Regenerate Token**; this disconnects every connected assistant immediately.
+</Warning>
+
+## Register the server in your client
+
+Pick the client you use. In every snippet, replace `<token>` with the token from the settings tab and keep the URL exactly as shown in the app.
+
+<Tabs>
+  <Tab title="Claude Code">
+    Run this in a terminal. The `--transport http` flag tells Claude Code to use the Streamable HTTP transport that Chat-Accounting speaks.
+
+    ```bash
+    claude mcp add --transport http chat-accounting http://127.0.0.1:13337/mcp \
+      --header "Authorization: Bearer <token>"
+    ```
+
+    Confirm the server is registered and reachable:
+
+    ```bash
+    claude mcp list
+    ```
+
+    Then start a session and ask something like "What is my current balance sheet?". Claude Code will show the `chat-accounting` tools it can call.
+  </Tab>
+  <Tab title="Claude Desktop">
+    Claude Desktop's config file only launches stdio servers, so use the `mcp-remote` bridge to connect to the HTTP endpoint. Edit `claude_desktop_config.json`:
+
+    - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+    - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+    ```json
+    {
+      "mcpServers": {
+        "chat-accounting": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "mcp-remote",
+            "http://127.0.0.1:13337/mcp",
+            "--header",
+            "Authorization: Bearer <token>"
+          ]
+        }
+      }
+    }
+    ```
+
+    Restart Claude Desktop. The tools appear under the hammer icon in the chat box.
+
+    <Tip>
+    `npx` must be on the PATH that Claude Desktop sees. If the server fails to start, install Node.js from [nodejs.org](https://nodejs.org) and restart your machine so the new PATH is picked up.
+    </Tip>
+  </Tab>
+  <Tab title="Cursor">
+    Create or edit `.cursor/mcp.json` in your project, or `~/.cursor/mcp.json` to make it global:
+
+    ```json
+    {
+      "mcpServers": {
+        "chat-accounting": {
+          "url": "http://127.0.0.1:13337/mcp",
+          "headers": {
+            "Authorization": "Bearer <token>"
+          }
+        }
+      }
+    }
+    ```
+
+    Open **Cursor Settings > MCP** and check that `chat-accounting` shows a green status with 20 tools.
+  </Tab>
+  <Tab title="VS Code (Copilot)">
+    Create `.vscode/mcp.json` in your workspace:
+
+    ```json
+    {
+      "servers": {
+        "chat-accounting": {
+          "type": "http",
+          "url": "http://127.0.0.1:13337/mcp",
+          "headers": {
+            "Authorization": "Bearer <token>"
+          }
+        }
+      }
+    }
+    ```
+
+    Click **Start** above the server entry, then use Copilot Chat in agent mode.
+  </Tab>
+  <Tab title="Other clients">
+    Any client that supports the MCP **Streamable HTTP** transport (protocol version `2025-03-26` or `2025-06-18`) can connect. The generic shape is:
+
+    ```json
+    {
+      "chat-accounting": {
+        "type": "http",
+        "url": "http://127.0.0.1:13337/mcp",
+        "headers": {
+          "Authorization": "Bearer <token>"
+        }
+      }
+    }
+    ```
+
+    The server only accepts `POST` and `DELETE`. It does not open a server-to-client SSE stream, so clients that require one for `GET` will receive `405 Method Not Allowed` and should fall back to plain request/response.
+  </Tab>
+</Tabs>
+
+## Test the connection by hand
+
+You can check the server without any AI client using `curl`. This sends the MCP `initialize` handshake:
+
+```bash
+curl -s http://127.0.0.1:13337/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"curl","version":"1.0"}}}'
+```
+
+A healthy server replies with its identity and a session id in the `Mcp-Session-Id` response header:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": { "tools": {} },
+    "serverInfo": { "name": "chat-accounting", "title": "Chat-Accounting", "version": "0.37.0" },
+    "instructions": "Local accounting server for Chat-Accounting (Indian accounting, GST). Call get_company_info first. ..."
+  }
+}
+```
+
+To list the tools, send a second request with the session id from the first response:
+
+```bash
+curl -s http://127.0.0.1:13337/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -H "Mcp-Session-Id: <session id from the initialize response>" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+```
+
+## Turn the server off or on
+
+Click **Disable** on the **AI (MCP)** tab to stop the server. Chat-Accounting remembers this choice, so the server stays off across restarts until you click **Enable** again. Disabling rejects any tool calls that are still in flight with the message `MCP server stopped.`
+
+## Working with more than one company file
+
+The server does not know about company files. Every tool runs against whichever company file is open in the app window at that moment. If you switch company files while an assistant is connected, the next tool call simply targets the new file. Ask the assistant to call `get_company_info` whenever you are unsure which books it is looking at.

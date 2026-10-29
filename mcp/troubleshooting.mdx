@@ -1,0 +1,131 @@
+---
+title: "Troubleshooting"
+description: "Fixes for the common errors you may see when connecting an AI assistant to Chat-Accounting over MCP."
+---
+
+Start every investigation on the **Settings > AI (MCP)** tab. The status dot at the top tells you whether the server is **running** (green), **stopped** (grey) or **failed to start** (red, with the error text underneath).
+
+## Connection errors
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized">
+    The token in your client config does not match the one in the app.
+
+    - Compare it with the token shown after clicking **Show** on the settings tab. Copy it again using the **Copy** button rather than retyping.
+    - If you clicked **Regenerate Token** at any point, every client config now holds a stale token and must be updated.
+    - Check the header shape is exactly `Authorization: Bearer <token>` with a single space after `Bearer`.
+  </Accordion>
+
+  <Accordion title="Connection refused">
+    Nothing is listening on the port your client is using.
+
+    - Is Chat-Accounting open? The server only runs while the app is running.
+    - Is the server enabled? The settings tab shows **Enable** if it is off.
+    - Did the port change? If `13337` was busy at launch, the app moved to the next free port, up to `13346`. The URL on the settings tab is authoritative; update your client to match.
+  </Accordion>
+
+  <Accordion title="MCP server failed to start / Ports 13337-13346 are all in use">
+    Ten consecutive ports were busy, or the OS refused to bind.
+
+    - Find what holds the port. On macOS or Linux run `lsof -i :13337`; on Windows run `netstat -ano | findstr 13337`.
+    - Stop the other program, or change the first port the app tries. The setting is `mcpServerPort` in the app's `config.json` under your user data directory; the app does not yet expose it in the UI. Restart the app after changing it.
+    - Any other error text is shown verbatim on the settings tab.
+  </Accordion>
+
+  <Accordion title="403 Forbidden origin">
+    The request carried an `Origin` header that was not local. This happens when a browser-based tool, or a proxy in front of one, calls the server. Native desktop clients do not send `Origin`. Use a native client, or make sure whatever is proxying the request runs on the same machine and reports a `localhost` origin.
+  </Accordion>
+
+  <Accordion title="405 Method not allowed on GET">
+    The client tried to open a server-sent-events stream. Chat-Accounting never sends server-initiated messages, so it answers `405` as the MCP spec allows. Well-behaved clients treat this as "no stream available" and continue. If your client refuses to work without the stream, use a different client or the `mcp-remote` bridge.
+  </Accordion>
+
+  <Accordion title="404 on every request after a while">
+    Your MCP session expired. Sessions time out after 60 minutes without a request, and are also cleared when the token is regenerated or the server is stopped. A `404` tells the client to run `initialize` again; most do this automatically. If yours does not, restart the client.
+  </Accordion>
+</AccordionGroup>
+
+## Tool errors
+
+These come back inside a successful HTTP response with `isError: true`, so the assistant will usually read them to you.
+
+<AccordionGroup>
+  <Accordion title="No company file is open in Chat-Accounting">
+    The server is up but the app is on the file selector or setup wizard. Open your company file in the app and ask the assistant to try again. The assistant cannot open files for you.
+  </Accordion>
+
+  <Accordion title="The Chat-Accounting window is not available">
+    The app window was closed while the process kept running (for example, on macOS with the window closed but the app still in the Dock). Reopen the window from the Dock or taskbar.
+  </Accordion>
+
+  <Accordion title="Timed out waiting for the user to approve the action">
+    A submit, cancel or delete was requested and nobody clicked **Approve** or **Deny** within two minutes. The document is unchanged. Ask the assistant to try again and watch for the **Approve AI Action** dialog; the app window is brought to the front when it appears.
+  </Accordion>
+
+  <Accordion title="User declined the action in Chat-Accounting">
+    You, or someone at the keyboard, clicked **Deny** or closed the dialog. Nothing changed.
+  </Accordion>
+
+  <Accordion title="Tool call timed out after 30s / 60s">
+    The tool ran too long. Reports on very large ledgers are the usual cause. Ask the assistant to narrow the date range or filters. Reports return at most 1,000 rows, so narrower filters also give more useful answers.
+  </Accordion>
+
+  <Accordion title="Too many concurrent requests, retry in a moment">
+    More than 8 tool calls were in flight at once. This usually means an assistant fanned out many report calls in parallel. Wait a moment and retry; the limit is per server, not per client.
+  </Accordion>
+
+  <Accordion title="Unknown doctype / Unknown field / Unknown filter">
+    The assistant guessed a name that does not exist in your company file. It should call `list_doctypes` or `get_doctype_schema` to discover the right names. Doctype names are case-sensitive, for example `SalesInvoice` not `Sales Invoice`.
+  </Accordion>
+
+  <Accordion title="X is submitted and cannot be edited">
+    `update_document` was called on a submitted document. Submitted documents are immutable. Cancel it first (you will be asked to approve), then either edit the cancelled copy or create a new document.
+  </Accordion>
+
+  <Accordion title="Company GSTIN is not set">
+    `export_gstr` needs the company GSTIN. Set it in **Settings > General**. This field only appears when the company country is India.
+  </Accordion>
+
+  <Accordion title="Invalid GSTIN / Invalid HSN/SAC code">
+    The value failed the format check before the document was created. A GSTIN is 15 characters: 2 digits, 5 letters, 4 digits, 1 letter, 1 digit, 1 alphanumeric, 1 alphanumeric. HSN and SAC codes are 4 to 8 digits.
+  </Accordion>
+</AccordionGroup>
+
+## Client-specific notes
+
+<AccordionGroup>
+  <Accordion title="Claude Desktop shows the server as failed">
+    Claude Desktop launches `npx mcp-remote` for you. Common causes:
+
+    - `npx` is not on the PATH that GUI apps see. Install Node.js from the official installer and reboot.
+    - The token contains the header as two separate args. Keep `"--header"` and `"Authorization: Bearer <token>"` as two array entries, exactly as in [Connect an assistant](/mcp/connect).
+    - Open the Claude Desktop logs (**Settings > Developer > Open Logs Folder**) and look for the `chat-accounting` server output.
+  </Accordion>
+
+  <Accordion title="Claude Code says the server is not connected">
+    Run `claude mcp list` to see its status, then `claude mcp get chat-accounting` to check the URL and headers. Remove and re-add it if the token changed:
+
+    ```bash
+    claude mcp remove chat-accounting
+    claude mcp add --transport http chat-accounting http://127.0.0.1:13337/mcp \
+      --header "Authorization: Bearer <token>"
+    ```
+  </Accordion>
+
+  <Accordion title="Cursor shows 0 tools">
+    Cursor caches the tool list. Toggle the server off and on in **Cursor Settings > MCP**, or restart Cursor. Also confirm the `headers` block is present; without the token Cursor gets `401` and reports no tools.
+  </Accordion>
+</AccordionGroup>
+
+## Checking the server by hand
+
+A single `curl` call tells you whether the HTTP layer and token are fine, independent of any AI client:
+
+```bash
+curl -i http://127.0.0.1:13337/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"ping"}'
+```
+
+A `200` with `{"jsonrpc":"2.0","id":1,"result":{}}` means the server is healthy. Any other status maps to one of the connection errors above.

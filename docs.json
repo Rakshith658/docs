@@ -23,6 +23,17 @@
         ]
       },
       {
+        "group": "AI Assistants (MCP)",
+        "pages": [
+          "mcp/overview",
+          "mcp/connect",
+          "mcp/tools",
+          "mcp/security",
+          "mcp/how-it-works",
+          "mcp/troubleshooting"
+        ]
+      },
+      {
         "group": "Basics",
         "pages": [
           "accounting-basics",

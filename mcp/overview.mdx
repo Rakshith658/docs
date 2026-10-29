@@ -1,0 +1,67 @@
+---
+title: "AI assistants (MCP)"
+description: "Chat-Accounting runs a local MCP server so AI assistants like Claude can read your books, run reports and draft entries through chat."
+---
+
+Chat-Accounting runs a local [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server while the app is open. Any MCP-capable AI assistant, such as Claude Desktop, Claude Code, Cursor or VS Code, can connect to it and do accounting work with you in plain language.
+
+The assistant can:
+
+- Read any document in your company file: invoices, parties, items, accounts, ledger entries.
+- Run financial reports: General Ledger, Profit and Loss, Balance Sheet, Trial Balance, GSTR-1, GSTR-2, Stock Ledger and Stock Balance.
+- Export GSTN portal JSON for GSTR-1 and GSTR-2 filing.
+- Create **draft** sales invoices, purchase invoices, payments, journal entries, parties and items.
+- Ask you to submit, cancel or delete a document. You approve each of these inside the app.
+
+<Info>
+The MCP server is **on by default** and starts when the app starts. You can turn it off at any time from **Settings > AI (MCP)**.
+</Info>
+
+## How safe is it?
+
+The integration is built so an assistant can never silently change your ledger:
+
+| Concern | How Chat-Accounting handles it |
+| --- | --- |
+| Who can connect | Only programs on your own computer. The server binds to `127.0.0.1` and rejects browser requests from non-local origins. |
+| Authentication | Every request needs a secret bearer token shown in **Settings > AI (MCP)**. You can regenerate it at any time. |
+| Writing to the ledger | Create tools only make **drafts**. Nothing posts to the ledger until `submit_document` runs, and that opens an approval dialog in the app. |
+| Destructive actions | Cancel and delete also require your approval in the app. |
+| Which company file | Tools always run against the company file that is currently open in the app. If none is open, the assistant gets an error. |
+
+Read [Security and approvals](/mcp/security) for the full model.
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Connect an assistant" icon="plug" href="/mcp/connect">
+    Copy the server URL and token, then configure Claude Code, Claude Desktop, Cursor or VS Code.
+  </Card>
+  <Card title="Tool reference" icon="wrench" href="/mcp/tools">
+    All 20 tools the assistant can call, with their arguments and limits.
+  </Card>
+  <Card title="How the connection works" icon="diagram-project" href="/mcp/how-it-works">
+    The request path from an MCP client, through the Electron main process, to the live app window.
+  </Card>
+  <Card title="Troubleshooting" icon="life-ring" href="/mcp/troubleshooting">
+    Fixes for 401 errors, port conflicts, timeouts and "no company file is open".
+  </Card>
+</CardGroup>
+
+## Example conversation
+
+Once connected, you can talk to the assistant about your books directly:
+
+> **You:** Which customers owe me money right now?
+>
+> **Assistant:** *(calls `get_company_info`, then `get_outstanding_invoices` with type `sales`)* Three invoices are outstanding, totalling ₹1,24,500. The oldest is SINV-1007 to Acme Traders for ₹45,000, due since 12 March.
+
+> **You:** Raise an invoice to Acme Traders for 10 units of "Steel Bracket" at ₹850 each.
+>
+> **Assistant:** *(calls `get_party_details` and `create_sales_invoice`)* I created draft invoice SINV-1012 for ₹10,030 including 18% GST. Acme's GSTIN is in Maharashtra, same as your company, so I applied CGST + SGST. Say the word and I will submit it.
+
+> **You:** Submit it.
+>
+> **Assistant:** *(calls `submit_document`)* Chat-Accounting is asking you to approve the submission. Please check the app window.
+
+The app shows an **Approve AI Action** dialog with the invoice details. Click **Submit** to post it to the ledger, or **Deny** to leave it as a draft.

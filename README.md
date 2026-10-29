@@ -25,6 +25,7 @@ mint broken-links
 
 - `docs.json` — site config and sidebar navigation
 - `*.mdx` — one file per documentation page
+- `mcp/` — original pages on the local MCP server for AI assistants (not adapted from upstream, so no `sourceUrl`)
 - `images/` — page screenshots, referenced as `/images/<section>/<file>`
 - `logo/` — navbar wordmark (`light.svg`, `dark.svg`); `favicon.svg` is the app icon
 

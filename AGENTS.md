@@ -27,6 +27,7 @@
 ## Content boundaries
 
 - Preserve the `sourceUrl` and `sourceUpdated` frontmatter fields; they record upstream provenance required for AGPL-3.0 attribution
+- Pages under `mcp/` are original to Chat-Accounting and have no `sourceUrl`; keep them in sync with `books/main/mcp/`, `books/src/mcp/` and `books/utils/mcp/toolDefs.ts`
 - Store screenshots under `images/<section>/` and reference them with a root-relative path (`/images/settings/print-templates.png`)
 - Every page must be listed in `docs.json` navigation, or Mintlify will treat it as orphaned
 - Run `mint broken-links` before committing navigation or link changes

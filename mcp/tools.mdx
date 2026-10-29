@@ -1,0 +1,252 @@
+---
+title: "Tool reference"
+description: "Every MCP tool Chat-Accounting exposes to AI assistants, with arguments, defaults, limits and which ones need your approval."
+---
+
+Chat-Accounting exposes 20 tools in three groups. The assistant sees the same names and descriptions listed here when it calls `tools/list`.
+
+| Group | What it can do | Approval needed |
+| --- | --- | --- |
+| Read | Look up documents, schemas, balances and reports | No |
+| Draft writes | Create or edit **draft** documents | No |
+| Gated actions | Submit, cancel or delete a document | **Yes**, in the app |
+
+All dates are `YYYY-MM-DD` strings. All amounts are plain numbers in the company currency (INR by default). Document names look like `SINV-1001`, `PINV-1001`, `PAY-1001` or `JV-1001` depending on your number series.
+
+<Tip>
+Draft writes never touch the ledger. A draft invoice has no effect on receivables, GST reports or stock until it is submitted, and submission always goes through the **Approve AI Action** dialog.
+</Tip>
+
+## Read tools
+
+### get_company_info
+
+Returns the name, country, currency, GSTIN, fiscal year dates and file path of the open company. The server's `initialize` instructions tell assistants to call this first.
+
+No arguments.
+
+### list_doctypes
+
+Lists every document type with its label and whether it is a singleton (settings) or submittable (posts to the ledger on submit). Child tables are omitted.
+
+No arguments.
+
+### get_doctype_schema
+
+Returns the fields of one doctype: name, label, type, required flag, select options and link targets. Assistants use this before creating or filtering a doctype they have not seen yet.
+
+<ParamField path="doctype" type="string" required>
+  Schema name, for example `SalesInvoice`.
+</ParamField>
+
+### list_documents
+
+Lists documents with filters, field selection and pagination. Returns raw stored values.
+
+<ParamField path="doctype" type="string" required>
+  Schema name. Singleton doctypes are rejected; use `get_document` instead.
+</ParamField>
+<ParamField path="filters" type="object">
+  `{fieldname: value}` for equality, or `{fieldname: [operator, value]}` with one of `=`, `!=`, `>`, `>=`, `<`, `<=`, `like`, `in`. Example: `{"submitted": true, "outstandingAmount": [">", 0], "party": ["like", "%acme%"]}`. Unknown field names are rejected.
+</ParamField>
+<ParamField path="fields" type="string[]">
+  Fields to return. Defaults to all fields.
+</ParamField>
+<ParamField path="limit" type="number" default="50">
+  Maximum 500.
+</ParamField>
+<ParamField path="offset" type="number" default="0" />
+<ParamField path="orderBy" type="string" default="created" />
+<ParamField path="order" type="'asc' | 'desc'" default="desc" />
+
+### get_document
+
+Returns one document including child table rows such as invoice line items.
+
+<ParamField path="doctype" type="string" required />
+<ParamField path="name" type="string">
+  Required for normal doctypes. Omit for singletons such as `AccountingSettings`.
+</ParamField>
+
+### get_outstanding_invoices
+
+Lists submitted, uncancelled invoices with an outstanding amount above zero, plus the total.
+
+<ParamField path="type" type="'sales' | 'purchase'" required>
+  `sales` for receivables, `purchase` for payables.
+</ParamField>
+<ParamField path="party" type="string">
+  Restrict to one party.
+</ParamField>
+
+### get_party_details
+
+Returns the full party record (GSTIN, GST registration type, addresses, balances) and its 20 most recent ledger entries. Timeout 60 s.
+
+<ParamField path="name" type="string" required>
+  Party name.
+</ParamField>
+
+### run_report
+
+Runs a financial report and returns its columns and rows. Rows are capped at 1,000; the response carries `totalRows` and `truncated` so the assistant knows when to narrow the filters. Unknown filter names are rejected with the list of valid ones. Timeout 60 s.
+
+<ParamField path="report" type="string" required>
+  One of `general-ledger`, `profit-and-loss`, `balance-sheet`, `trial-balance`, `gstr-1`, `gstr-2`, `stock-ledger`, `stock-balance`.
+</ParamField>
+<ParamField path="filters" type="object">
+  Report-specific. Common ones:
+
+  - **general-ledger**: `fromDate`, `toDate`, `account`, `party`, `referenceType`, `referenceName`, `groupBy` (`none`, `party`, `account`, `referenceName`).
+  - **profit-and-loss**, **balance-sheet**, **trial-balance**: `basedOn` (`Fiscal Year` or `Until Date`); for Fiscal Year set `fromYear` and `toYear` like `2024-04-01`; for Until Date set `toDate` and `count`; `periodicity` one of `Monthly`, `Quarterly`, `Half Yearly`, `Yearly`.
+  - **gstr-1**, **gstr-2**: `transferType` (`B2B`, `B2CL`, `B2CS`, `NR`), `fromDate`, `toDate`.
+</ParamField>
+
+### export_gstr
+
+Builds the GSTN-portal JSON for a GSTR-1 or GSTR-2 section. Requires the company GSTIN to be set in **Settings > General**. Timeout 60 s.
+
+<ParamField path="gstr" type="'gstr-1' | 'gstr-2'" required />
+<ParamField path="transferType" type="'B2B' | 'B2CL' | 'B2CS'" required>
+  B2B is registered buyers, B2CL is unregistered inter-state invoices of ₹2.5 lakh or more, B2CS is other unregistered.
+</ParamField>
+<ParamField path="fromDate" type="string" required />
+<ParamField path="toDate" type="string" required />
+
+## Draft write tools
+
+### create_sales_invoice
+
+Creates a **draft** sales invoice. Party formulas run first so the receivable account and currency are set, then each line is appended and totals are recalculated.
+
+<ParamField path="party" type="string" required>
+  Customer name. Must already exist as a Party.
+</ParamField>
+<ParamField path="date" type="string" default="today" />
+<ParamField path="items" type="object[]" required>
+  At least one line. Each line has `item` (required, must exist), `quantity` (required), optional `rate` (defaults to the item rate) and optional `tax` (a tax template name; defaults to the item's default template).
+</ParamField>
+
+**GST guidance built into the tool description:** use `GST-<rate>` (splits into CGST + SGST) when the place of supply is in the company's own state and `IGST-<rate>` for inter-state supplies. Available rates are 28, 18, 12, 6, 5, 3, 0.25 and 0. `Exempt-GST-0` and `Exempt-IGST-0` cover exempt goods. Assistants compare the first two digits of the party GSTIN with the company GSTIN to decide.
+
+### create_purchase_invoice
+
+Same arguments and GST rules as `create_sales_invoice`, but the party is a supplier and the result is a draft purchase invoice.
+
+### record_payment
+
+Creates a **draft** payment against a submitted invoice. The invoice must be submitted and have an outstanding amount.
+
+<ParamField path="invoiceType" type="'SalesInvoice' | 'PurchaseInvoice'" required />
+<ParamField path="invoiceName" type="string" required />
+<ParamField path="amount" type="number">
+  Defaults to the full outstanding amount. Must be greater than zero.
+</ParamField>
+<ParamField path="paymentAccount" type="string">
+  Cash or bank account the money moves through. Defaults to the invoice default.
+</ParamField>
+<ParamField path="paymentMethod" type="string">
+  For example `Cash` or `Bank Transfer`.
+</ParamField>
+<ParamField path="date" type="string" default="today" />
+
+### create_party
+
+Creates a customer or supplier.
+
+<ParamField path="name" type="string" required />
+<ParamField path="role" type="'Customer' | 'Supplier' | 'Both'" required />
+<ParamField path="email" type="string" />
+<ParamField path="phone" type="string" />
+<ParamField path="gstType" type="string">
+  `Unregistered`, `Registered Regular` or `Consumer`.
+</ParamField>
+<ParamField path="gstin" type="string">
+  15-character GSTIN such as `27AAAAA0000A1Z5`. Validated against the GSTIN pattern, and only allowed when `gstType` is `Registered Regular`.
+</ParamField>
+
+### create_item
+
+Creates a product or service.
+
+<ParamField path="name" type="string" required />
+<ParamField path="rate" type="number" required>
+  Default selling or buying rate.
+</ParamField>
+<ParamField path="for" type="'Sales' | 'Purchases' | 'Both'" default="Both" />
+<ParamField path="itemType" type="'Product' | 'Service'" default="Product" />
+<ParamField path="hsnCode" type="string">
+  4 to 8 digit HSN (goods) or SAC (services) code. Validated.
+</ParamField>
+<ParamField path="tax" type="string">
+  Default tax template applied on invoice lines, for example `GST-18`.
+</ParamField>
+<ParamField path="unit" type="string" default="Unit" />
+
+### create_journal_entry
+
+Creates a **draft** journal entry. Total debits must equal total credits or the call fails before anything is saved.
+
+<ParamField path="entryType" type="string" default="Journal Entry">
+  One of `Journal Entry`, `Bank Entry`, `Cash Entry`, `Credit Card Entry`, `Debit Note`, `Credit Note`, `Contra Entry`, `Excise Entry`, `Write Off Entry`, `Opening Entry`, `Depreciation Entry`.
+</ParamField>
+<ParamField path="date" type="string" default="today" />
+<ParamField path="accounts" type="object[]" required>
+  At least two rows of `{ account, debit?, credit? }`. Account names must exist in the chart of accounts.
+</ParamField>
+<ParamField path="referenceNumber" type="string" />
+<ParamField path="userRemark" type="string" />
+
+### create_document
+
+Generic escape hatch: creates a draft of any doctype from a `{fieldname: value}` map. Child tables are passed as arrays of row objects. Singleton and child doctypes are rejected. The tool description tells assistants to prefer the purpose-built `create_*` tools when one exists.
+
+<ParamField path="doctype" type="string" required />
+<ParamField path="values" type="object" required />
+
+### update_document
+
+Updates fields on an existing **draft**. Submitted documents are rejected with a message to cancel them first. Singleton and child doctypes are rejected.
+
+<ParamField path="doctype" type="string" required />
+<ParamField path="name" type="string" required />
+<ParamField path="values" type="object" required />
+
+## Gated tools
+
+These three tools show the **Approve AI Action** dialog in Chat-Accounting before anything happens. The app window is brought to the front. If you do not answer within about two minutes, the call fails with a timeout and nothing changes. See [Security and approvals](/mcp/security).
+
+### submit_document
+
+Submits a draft, posting it to the ledger. Invoices and journal entries create accounting entries; payments allocate against invoices; stock documents move inventory. Fails if the doctype is not submittable or the document is already submitted.
+
+<ParamField path="doctype" type="string" required />
+<ParamField path="name" type="string" required />
+
+### cancel_document
+
+Cancels a submitted document, reversing its ledger entries. Fails if the document is not submitted or is already cancelled.
+
+<ParamField path="doctype" type="string" required />
+<ParamField path="name" type="string" required />
+
+### delete_document
+
+Permanently deletes a draft or cancelled document. Submitted documents must be cancelled first.
+
+<ParamField path="doctype" type="string" required />
+<ParamField path="name" type="string" required />
+
+## Limits at a glance
+
+| Limit | Value |
+| --- | --- |
+| Default tool timeout | 30 s |
+| Report and party-detail timeout | 60 s |
+| Gated tool timeout (waiting for you) | 120 s |
+| Concurrent tool calls | 8 |
+| `list_documents` rows | 50 default, 500 max |
+| `run_report` rows | 1,000 |
+| `get_party_details` ledger entries | 20 most recent |
+| Request body | 1 MiB |
+| Session idle expiry | 60 minutes |
