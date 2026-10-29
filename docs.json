@@ -108,14 +108,14 @@
   "navbar": {
     "links": [
       {
-        "label": "GitHub",
-        "href": "https://github.com/Rakshith658/chatAccounting"
+        "label": "Website",
+        "href": "https://chataccounting.vercel.app"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Download",
-      "href": "https://github.com/Rakshith658/chatAccounting/releases/latest"
+      "href": "https://chataccounting.vercel.app/#download"
     }
   },
   "contextual": {
@@ -132,8 +132,7 @@
   },
   "footer": {
     "socials": {
-      "website": "https://chataccounting.ai",
-      "github": "https://github.com/Rakshith658/chatAccounting"
+      "website": "https://chataccounting.vercel.app"
     }
   }
 }
